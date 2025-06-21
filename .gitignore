@@ -1,6 +1,5 @@
 # Root-level ignore
 node_modules/
-.env
 dist/
 build/
 sqlite.db
