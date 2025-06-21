@@ -4,7 +4,9 @@
     {
       "src": "client/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "distDir": "dist"
+      }
     },
     {
       "src": "api/paths.js",
@@ -12,8 +14,17 @@
     }
   ],
   "routes": [
-    { "src": "^/api/paths$", "dest": "/api/paths.js" },
-    { "src": "^/api/paths/(.*)$", "dest": "/api/paths.js" },
-    { "src": "/(.*)", "dest": "/client/dist/index.html" }
+    {
+      "src": "^/api/paths$",
+      "dest": "/api/paths.js"
+    },
+    {
+      "src": "^/api/paths/(.*)$",
+      "dest": "/api/paths.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/client/dist/index.html"
+    }
   ]
 }
