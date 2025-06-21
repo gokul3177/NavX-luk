@@ -1,13 +1,9 @@
 import mysql from "mysql2/promise";
 
 const allowedOrigins = [
-  "https://navx-luk.vercel.app",
-  "https://navx-413iqj69d-gokuls-projects-18c993ea.vercel.app",
-  "https://n-a-v-x.vercel.app",
-  "http://localhost:3000",
-  "http://localhost:5173"
+  "https://navx-luk.vercel.app", // ✅ frontend domain
+  "https://n-a-v-x.vercel.app",  // ✅ optional: fallback frontend
 ];
-
 function setCorsHeaders(res, origin) {
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
