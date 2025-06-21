@@ -1,61 +1,53 @@
 const express = require("express");
 const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
+const mysql = require("mysql2");
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
 
-// Connect to SQLite database
-const db = new sqlite3.Database("./navxlogs.db", (err) => {
-  if (err) return console.error("❌ Failed to connect to DB", err.message);
-  console.log("✅ Connected to SQLite DB");
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      algorithm TEXT,
-      start_point TEXT,
-      goal_point TEXT,
-      obstacles TEXT,
-      path TEXT,
-      path_length INTEGER,
-      time_taken TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+const db = mysql.createConnection({
+  host: process.env.MYSQL_HOST,
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
 });
 
-// Add new simulation result
+db.connect((err) => {
+  if (err) {
+    console.error("❌ MySQL connection failed:", err.message);
+  } else {
+    console.log("✅ Connected to MySQL");
+  }
+});
+
 app.post("/api/path", (req, res) => {
   const { algorithm, start_point, goal_point, obstacles, path, path_length, time_taken } = req.body;
-  const query = `
+  const sql = `
     INSERT INTO logs (algorithm, start_point, goal_point, obstacles, path, path_length, time_taken)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  db.run(query, [algorithm, start_point, goal_point, obstacles, path, path_length, time_taken], function (err) {
+  db.query(sql, [algorithm, start_point, goal_point, obstacles, path, path_length, time_taken], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID });
+    res.json({ id: result.insertId });
   });
 });
 
-// Fetch all history
 app.get("/api/paths", (req, res) => {
-  db.all("SELECT * FROM logs ORDER BY id DESC", (err, rows) => {
+  db.query("SELECT * FROM logs ORDER BY id DESC", (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+    res.json(results);
   });
 });
 
-// ✅ Delete all history (newly added)
 app.delete("/api/paths", (req, res) => {
-  db.run("DELETE FROM logs", function (err) {
+  db.query("TRUNCATE TABLE logs", (err) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: "All logs deleted successfully." });
+    res.json({ message: "Logs cleared." });
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
