@@ -50,6 +50,8 @@ function App() {
   };
 
   const simulateAlgo = async (algoName, algoFunc) => {
+    if (showHistory) return;
+
     const start = findCell("start");
     const goal = findCell("goal");
 
@@ -62,6 +64,11 @@ function App() {
     const result = algoFunc(grid, start, goal);
     const t1 = performance.now();
 
+    if (!result.path || result.path.length === 0) {
+      alert("No path found.");
+      return;
+    }
+
     const newGrid = grid.map((row) =>
       row.map((cell) =>
         Array.isArray(cell) && (cell.includes("start") || cell.includes("goal") || cell.includes("obstacle"))
@@ -72,15 +79,6 @@ function App() {
 
     for (let i = 0; i < result.path.length; i++) {
       const [r, c] = result.path[i];
-
-      if (
-        Array.isArray(newGrid[r][c]) &&
-        (newGrid[r][c].includes("obstacle") || newGrid[r][c].includes("start") || newGrid[r][c].includes("goal"))
-      ) {
-        continue;
-      }
-
-      await new Promise((res) => setTimeout(res, 80));
 
       if (!Array.isArray(newGrid[r][c])) newGrid[r][c] = [];
 
@@ -105,13 +103,13 @@ function App() {
       ),
       path: JSON.stringify(result.path),
       path_length: result.path.length,
-      time_taken: (t1 - t0).toFixed(2)
+      time_taken: (t1 - t0).toFixed(2),
     };
 
     await fetch("http://localhost:4000/api/path", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   };
 
@@ -156,7 +154,7 @@ function App() {
         JSON.stringify(row.goal_point),
         JSON.stringify(row.path),
         row.path_length,
-        row.time_taken
+        row.time_taken,
       ];
       csv.push(line.join(","));
     }
@@ -184,7 +182,7 @@ function App() {
         padding: "2rem",
         background: "linear-gradient(to right, #4facfe, #00f2fe)",
         fontFamily: "'Courier New', Courier, monospace",
-        animation: "bgFade 10s infinite alternate"
+        animation: "bgFade 10s infinite alternate",
       }}
       onClick={() => showHistory && setShowHistory(false)}
     >
@@ -193,7 +191,9 @@ function App() {
       <div style={{ display: "flex", gap: "10px", marginBottom: "1rem" }}>
         <button onClick={handleClear}>🧹 Clear</button>
         <button onClick={handleHistory}>📜 History</button>
-        <button onClick={() => downloadCSV(exportToCSV(history), "navx_export.csv")}>💾 Export .CSV</button>
+        <button onClick={() => downloadCSV(exportToCSV(history), "navx_export.csv")}>
+          💾 Export .CSV
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "1rem" }}>
@@ -220,7 +220,7 @@ function App() {
             padding: "1rem",
             borderRadius: "10px",
             position: "relative",
-            boxShadow: "0 4px 8px rgba(0,0,0,0.2)"
+            boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
           }}
         >
           <button
@@ -244,7 +244,10 @@ function App() {
             </thead>
             <tbody>
               {history.map((row, idx) => (
-                <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? "#fff8e1" : "#ffffff" }}>
+                <tr
+                  key={idx}
+                  style={{ backgroundColor: idx % 2 === 0 ? "#fff8e1" : "#ffffff" }}
+                >
                   <td>{row.algorithm}</td>
                   <td>{row.start_point}</td>
                   <td>{row.goal_point}</td>
@@ -257,8 +260,9 @@ function App() {
           </table>
         </div>
       )}
+
       <footer style={{ marginTop: "2rem", color: "#0d47a1", fontWeight: "bold" }}>
-            🚀 Built with 💓 for RCS
+        🚀 Made in RCS
       </footer>
     </div>
   );
