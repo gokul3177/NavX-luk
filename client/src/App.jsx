@@ -1,10 +1,12 @@
-// App.jsx
 import React, { useState } from "react";
 import Grid from "./components/Grid";
 import { bfs, dfs, dijkstra, astar } from "./utils/pathfinding";
 
 const createEmptyGrid = () =>
   Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => []));
+
+// Define your backend API URL
+const API_BASE_URL = "https://navx-luk-production.up.railway.app/api";
 
 function App() {
   const [grid, setGrid] = useState(createEmptyGrid());
@@ -15,7 +17,6 @@ function App() {
   const handleCellClick = (row, col) => {
     if (showHistory) return;
     const newGrid = grid.map((r) => [...r]);
-
     if (currentTool === "start") {
       clearType("start");
       newGrid[row][col] = ["start"];
@@ -25,7 +26,6 @@ function App() {
     } else if (currentTool === "obstacle") {
       newGrid[row][col] = ["obstacle"];
     }
-
     setGrid(newGrid);
   };
 
@@ -51,10 +51,8 @@ function App() {
 
   const simulateAlgo = async (algoName, algoFunc) => {
     if (showHistory) return;
-
     const start = findCell("start");
     const goal = findCell("goal");
-
     if (!start || !goal) {
       alert("Set both start and goal points.");
       return;
@@ -106,11 +104,21 @@ function App() {
       time_taken: (t1 - t0).toFixed(2),
     };
 
-    await fetch("https://navx-luk-production.up.railway.app/api/path", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/path`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to save path: ${response.status} - ${errorText}`);
+      }
+      // console.log("Path saved successfully!");
+    } catch (error) {
+      console.error("Error saving path:", error);
+      alert("Failed to save path history. Please check the network and server logs.");
+    }
   };
 
   const handleClear = () => {
@@ -118,29 +126,43 @@ function App() {
   };
 
   const handleHistory = async () => {
-    const res = await fetch("https://navx-luk-production.up.railway.app/api/paths");
-    const data = await res.json();
-    setHistory(data);
-    setShowHistory(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/paths`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to fetch history: ${res.status} - ${errorText}`);
+      }
+      const data = await res.json();
+      setHistory(data);
+      setShowHistory(true);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+      alert("Failed to fetch history. Please check the server and network connection.");
+    }
   };
 
   const handleDeleteHistory = async () => {
-    const confirm = window.confirm(
-      "⚠️ Are you sure to delete? You can't retrieve the data back. This is a permanent change."
+    const confirmDelete = window.confirm(
+      "⚠️ Are you sure you want to delete all history? This action cannot be undone."
     );
 
-    if (!confirm) return;
+    if (!confirmDelete) return;
 
-    await fetch("https://navx-luk-production.up.railway.app/api/paths", {
-      method: "DELETE",
-    });
-
-    const res = await fetch("https://navx-luk-production.up.railway.app/api/paths");
-    const data = await res.json();
-    setHistory(data);
-    setShowHistory(false);
-
-    alert("History deleted successfully.");
+    try {
+      const response = await fetch(`${API_BASE_URL}/paths`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to delete history: ${response.status} - ${errorText}`);
+      }
+      // After successful deletion, re-fetch the history (which should now be empty)
+      await handleHistory();
+      alert("History deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting history:", error);
+      alert("Failed to delete history. Please try again.");
+    }
   };
 
   const exportToCSV = (rows) => {
@@ -184,14 +206,15 @@ function App() {
         fontFamily: "'Courier New', Courier, monospace",
         animation: "bgFade 10s infinite alternate",
       }}
-      onClick={() => showHistory && setShowHistory(false)}
+      onClick={() => showHistory && setShowHistory(false)} // This might unintentionally close history if clicked anywhere
     >
       <h1 style={{ textAlign: "center", fontSize: "2.5rem", color: "#0d47a1" }}>🤖 navX Simulator</h1>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "1rem" }}>
         <button onClick={handleClear}>🧹 Clear</button>
-        <button onClick={handleHistory}>📜 History</button>
-        <button onClick={() => downloadCSV(exportToCSV(history), "navx_export.csv")}>
+        {/* Prevent closing history when clicking the button itself */}
+        <button onClick={(e) => { e.stopPropagation(); handleHistory(); }}>📜 History</button> 
+        <button onClick={(e) => { e.stopPropagation(); downloadCSV(exportToCSV(history), "navx_export.csv"); }}>
           💾 Export .CSV
         </button>
       </div>
@@ -222,6 +245,8 @@ function App() {
             position: "relative",
             boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
           }}
+          // Prevent closing history when clicking inside the history panel
+          onClick={(e) => e.stopPropagation()} 
         >
           <button
             onClick={handleDeleteHistory}
@@ -231,36 +256,39 @@ function App() {
           </button>
 
           <h2 style={{ color: "#e65100" }}>🕰️ Previous Results</h2>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ backgroundColor: "#ffe082" }}>
-                <th>Algorithm</th>
-                <th>Start</th>
-                <th>Goal</th>
-                <th>Path</th>
-                <th>Path Length</th>
-                <th>Time Taken (ms)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((row, idx) => (
-                <tr
-                  key={idx}
-                  style={{ backgroundColor: idx % 2 === 0 ? "#fff8e1" : "#ffffff" }}
-                >
-                  <td>{row.algorithm}</td>
-                  <td>{row.start_point}</td>
-                  <td>{row.goal_point}</td>
-                  <td>{Array.isArray(row.path) ? JSON.stringify(row.path) : row.path}</td>
-                  <td>{row.path_length}</td>
-                  <td>{row.time_taken}</td>
+          {history.length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#ffe082" }}>
+                  <th>Algorithm</th>
+                  <th>Start</th>
+                  <th>Goal</th>
+                  <th>Path</th>
+                  <th>Path Length</th>
+                  <th>Time Taken (ms)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {history.map((row, idx) => (
+                  <tr
+                    key={row.id || idx} // Use row.id if available for a stable key
+                    style={{ backgroundColor: idx % 2 === 0 ? "#fff8e1" : "#ffffff" }}
+                  >
+                    <td>{row.algorithm}</td>
+                    <td>{row.start_point}</td>
+                    <td>{row.goal_point}</td>
+                    <td>{Array.isArray(row.path) ? JSON.stringify(row.path) : row.path}</td>
+                    <td>{row.path_length}</td>
+                    <td>{row.time_taken}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p style={{ textAlign: "center", fontStyle: "italic", color: "#616161" }}>No history available. Run some simulations to see results here!</p>
+          )}
         </div>
       )}
-
       <footer style={{ marginTop: "2rem", color: "#0d47a1", fontWeight: "bold" }}>
         🚀 Made in RCS
       </footer>
