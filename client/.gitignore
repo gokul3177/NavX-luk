@@ -1,0 +1,5 @@
+# React (Vite or CRA) build files
+node_modules/
+dist/
+build/
+.env
