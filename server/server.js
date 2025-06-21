@@ -7,7 +7,18 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+// Configure CORS to allow specific origins
+// It's crucial to list all domains from which your frontend might access this backend.
+// This includes your main Vercel domain, any Vercel preview URLs, and your local development server.
+app.use(cors({
+  origin: [
+    'https://navx-luk.vercel.app', // Your primary Vercel domain
+    'https://navx-413iqj69d-gokuls-projects-18c993ea.vercel.app', // The specific Vercel preview URL from your error
+    'http://localhost:3000' // For local frontend development (adjust port if different)
+  ],
+  credentials: true // Important if you plan to send cookies or authorization headers
+}));
+
 app.use(express.json());
 
 // Create MySQL connection
@@ -80,6 +91,7 @@ app.delete("/api/paths", (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
+// Listen on '0.0.0.0' to be accessible from outside the container in deployment environments like Railway
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
